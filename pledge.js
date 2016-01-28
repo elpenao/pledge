@@ -46,30 +46,45 @@ Deferral.prototype.resolve = function (data){
 		this.$promise.state = 'resolved';
 		var self = this;
 		self.$promise.handlerGroups.forEach(function(group){
-			if (group.successCb) {  
-				try {
-					var successReturn = group.successCb(self.$promise.value);
-					if (successReturn) {
-						if (successReturn instanceof $Promise) {
-							group.forwarder.$promise = successReturn;
-						} else {
-							group.forwarder.resolve(successReturn);
-						}
-					}
-				} catch (e) {
-					group.forwarder.reject(e)
-				}
-			}
-			else {
-				group.forwarder.resolve(self.$promise.value);
-			}
+			self.callHandler(group, self, 'success');
 		});
 		self.$promise.handlerGroups = [];
 	}	
 }
 
-Deferral.prototype.handleSuccessHandler = function(group) {
+Deferral.prototype.callHandler = function(group, self, status) {
+	var handler = '';
+	var resOrRej = '';
+	if (status === 'success') {
+		handler = 'successCb';
+		resOrRej = 'resolve';
+	} else {
+		handler = 'errorCb';
+		resOrRej = 'reject';
+	}
+	if (group[handler]) {  
+		try {
+			var returned = group[handler](self.$promise.value);
+			if (returned) {
+				if (returned instanceof $Promise) {
+					self.mimicPromise(group.forwarder, returned);
+				} else {
+					group.forwarder.resolve(returned);
+				}
+			}
+		} catch (e) {
+			group.forwarder.reject(e)
+		}
+	}
+	else {
+		group.forwarder[resOrRej](self.$promise.value);
+	}
+}
 
+Deferral.prototype.mimicPromise = function(oldDeferral, newPromise) {
+	newPromise.then(function(d) {
+		oldDeferral.resolve(d);
+	});
 }
 
 
@@ -79,19 +94,7 @@ Deferral.prototype.reject = function (data){
 		this.$promise.state = 'rejected';
 		var self = this;
 		self.$promise.handlerGroups.forEach(function(group){
-			if (group.errorCb) {
-				try {
-					var errorReturn = group.errorCb(self.$promise.value);
-					if (errorReturn) {
-					group.forwarder.resolve(errorReturn);
-					}
-				} catch (e) {
-					group.forwarder.reject(e)
-				}
-			}
-			else {
-				group.forwarder.reject(self.$promise.value);
-			}
+			self.callHandler(group, self, 'failure');
 		});
 		self.$promise.handlerGroups = [];
 	}
