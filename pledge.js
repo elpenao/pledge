@@ -48,9 +48,9 @@ Deferral.prototype.resolve = function (data){
 		self.$promise.handlerGroups.forEach(function(group){
 			if (group.successCb) {
 				group.successCb(self.$promise.value);
-				// if (group.successCb(self.$promise.value)) {
-				// group.forwarder.resolve(group.successCb(self.$promise.value));
-				// }
+				if (group.successCb(self.$promise.value)) {
+				group.forwarder.resolve(group.successCb(self.$promise.value));
+				}
 			}
 			else {
 				group.forwarder.resolve(self.$promise.value);
