@@ -46,10 +46,18 @@ Deferral.prototype.resolve = function (data){
 		this.$promise.state = 'resolved';
 		var self = this;
 		self.$promise.handlerGroups.forEach(function(group){
-			if (group.successCb) {
-				group.successCb(self.$promise.value);
-				if (group.successCb(self.$promise.value)) {
-				group.forwarder.resolve(group.successCb(self.$promise.value));
+			if (group.successCb) {  
+				try {
+					var successReturn = group.successCb(self.$promise.value);
+					if (successReturn) {
+						if (successReturn instanceof $Promise) {
+							group.forwarder.$promise = successReturn;
+						} else {
+							group.forwarder.resolve(successReturn);
+						}
+					}
+				} catch (e) {
+					group.forwarder.reject(e)
 				}
 			}
 			else {
@@ -57,9 +65,13 @@ Deferral.prototype.resolve = function (data){
 			}
 		});
 		self.$promise.handlerGroups = [];
-	}
-	
+	}	
 }
+
+Deferral.prototype.handleSuccessHandler = function(group) {
+
+}
+
 
 Deferral.prototype.reject = function (data){
 	if (this.$promise.state === 'pending'){
@@ -67,7 +79,16 @@ Deferral.prototype.reject = function (data){
 		this.$promise.state = 'rejected';
 		var self = this;
 		self.$promise.handlerGroups.forEach(function(group){
-			if (group.errorCb) group.errorCb(self.$promise.value);
+			if (group.errorCb) {
+				try {
+					var errorReturn = group.errorCb(self.$promise.value);
+					if (errorReturn) {
+					group.forwarder.resolve(errorReturn);
+					}
+				} catch (e) {
+					group.forwarder.reject(e)
+				}
+			}
 			else {
 				group.forwarder.reject(self.$promise.value);
 			}
